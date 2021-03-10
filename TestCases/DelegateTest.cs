@@ -19,6 +19,16 @@ namespace TestCases
             ILRuntimeTest.TestFramework.DelegateTest.IntDelegateTest += cls.IntTest2;
 
             ILRuntimeTest.TestFramework.DelegateTest.IntDelegateTest(123);
+
+            ILRuntimeTest.TestFramework.DelegateTest.IntDelegateEventTest += IntTest;
+            ILRuntimeTest.TestFramework.DelegateTest.TestEvent();
+            ILRuntimeTest.TestFramework.DelegateTest.IntDelegateEventTest -= IntTest;
+
+            ILRuntimeTest.TestFramework.DelegateTest test = new ILRuntimeTest.TestFramework.DelegateTest();
+            test.IntDelegateEventTest2 += IntTest;
+            test.TestEvent2();
+            test.IntDelegateEventTest2 -= IntTest;
+
         }
 
         public static void DelegateTest02()
@@ -112,7 +122,11 @@ namespace TestCases
         {
             Action<int, string, string> a = (b, c, d) =>
             {
-                Console.WriteLine(string.Format("{0},{1},{2}", b, c, d));
+                Action act = () =>
+                {
+                    Console.WriteLine(string.Format("{0},{1},{2}", b, c, d));
+                };
+                act();
             };
 
             a(1, "2", "3");
@@ -158,6 +172,123 @@ namespace TestCases
             a("ffff");
         }
 
+        public static void DelegateTest15()
+        {
+            DelegateTestCls cls = new DelegateTestCls(123);
+            DelegateTest15Sub(cls.IntTest);
+        }
+
+        static void DelegateTest15Sub(Action<int> test)
+        {
+            test(555);
+        }
+
+        public static void DelegateTest16()
+        {
+            System.Action a = () => { };
+            System.Action<int> a_2 = (i) => { };
+            int a3 = 2;
+            Console.WriteLine(typeof(System.Action) == a.GetType());  //false, should be true
+            Console.WriteLine(typeof(int) == a3.GetType());  //false, should be true
+        }
+
+        public static void DelegateTest17()
+        {
+            Action a = () =>{ };
+            Console.WriteLine(a.GetHashCode());
+        }
+
+        public static void DelegateTest18()
+        {
+            ILRuntimeTest.TestFramework.DelegateTest.EnumDelegateTest = DelegateTest18Sub;
+            ILRuntimeTest.TestFramework.DelegateTest.TestEnumDelegate();
+        }
+
+        static void DelegateTest18Sub(ILRuntimeTest.TestFramework.TestCLREnum e)
+        {
+            switch (e)
+            {
+                case ILRuntimeTest.TestFramework.TestCLREnum.Test1:
+                    Console.WriteLine("Test1");
+                    break;
+                case ILRuntimeTest.TestFramework.TestCLREnum.Test2:
+                    Console.WriteLine("Test2");
+                    break;
+                case ILRuntimeTest.TestFramework.TestCLREnum.Test3:
+                    Console.WriteLine("Test3");
+                    break;
+                default:
+                    throw new Exception("Should not be here");
+            }
+        }
+        public static void DelegateTest19()
+        {
+            ILRuntimeTest.TestFramework.DelegateTest.EnumDelegateTest2 = DelegateTest19Sub;
+            ILRuntimeTest.TestFramework.DelegateTest.TestEnumDelegate2();
+        }
+
+        static ILRuntimeTest.TestFramework.TestCLREnum DelegateTest19Sub()
+        {
+            return ILRuntimeTest.TestFramework.TestCLREnum.Test2;
+        }
+
+        static int test20Val;
+        public static void DelegateTest20()
+        {
+            test20Val = 0;
+            Action<int> act = (b) => test20Val += b + 2;
+            act += (b) => test20Val += b + 3;
+
+            act(1);
+            if (test20Val != 7)
+                throw new Exception(test20Val.ToString());
+
+            test20Val = 0;
+            List<Action<int>> lst = new List<Action<int>>();
+            lst.Add(act);
+
+            lst[0](1);
+            if (test20Val != 7)
+                throw new Exception(test20Val.ToString());
+
+        }
+
+        public static void DelegateTest21()
+        {
+            test20Val = 0;
+            Func<int, int> act = (b) => test20Val += b + 2;
+            act += (b) => test20Val += b + 3;
+
+            var val = act(1);
+            if (val != 7)
+                throw new Exception(test20Val.ToString());
+
+            test20Val = 0;
+            List<Func<int, int>> lst = new List<Func<int, int>>();
+            lst.Add(act);
+
+            val = lst[0](1);
+            if (val != 7)
+                throw new Exception(test20Val.ToString());
+
+        }
+
+        public static void DelegateTest22()
+        {
+            DelegateTest22Sub<string, Object>("11", "22", DelegateTest22Sub2);
+        }
+        static void DelegateTest22Sub<T, U>(string str, Object obj, Action<T, U> action)
+        {
+            Action<string, Object> callback = action as Action<string, Object>;//在此用as转换为泛型委托时，提示空引用
+            callback(str, obj);
+        }
+
+        static void DelegateTest22Sub2(string str, Object obj)
+        {
+            string res = str + obj;
+            if (res != "1122")
+                throw new Exception();
+        }
         static void TestString(string a)
         {
             Console.WriteLine("test1:" + a);

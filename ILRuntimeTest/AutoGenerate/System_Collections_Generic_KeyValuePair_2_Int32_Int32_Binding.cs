@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -19,7 +20,6 @@ namespace ILRuntime.Runtime.Generated
         {
             BindingFlags flag = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
             MethodBase method;
-            FieldInfo field;
             Type[] args;
             Type type = typeof(System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>);
             args = new Type[]{};
@@ -28,6 +28,8 @@ namespace ILRuntime.Runtime.Generated
             args = new Type[]{};
             method = type.GetMethod("get_Value", flag, null, args, null);
             app.RegisterCLRMethodRedirection(method, get_Value_1);
+
+            app.RegisterCLRCreateDefaultInstance(type, () => new System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>());
 
 
         }
@@ -83,15 +85,17 @@ namespace ILRuntime.Runtime.Generated
             ILRuntime.Runtime.Enviorment.AppDomain __domain = __intp.AppDomain;
             StackObject* ptr_of_this_method;
             StackObject* __ret = ILIntepreter.Minus(__esp, 1);
+
             ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             ptr_of_this_method = ILIntepreter.GetObjectAndResolveReference(ptr_of_this_method);
-            System.Collections.Generic.KeyValuePair<System.Int32, System.Int32> instance_of_this_method;
-            instance_of_this_method = (System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>)typeof(System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
+            System.Collections.Generic.KeyValuePair<System.Int32, System.Int32> instance_of_this_method = (System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>)typeof(System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
 
             var result_of_this_method = instance_of_this_method.Key;
 
+            ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             WriteBackInstance(__domain, ptr_of_this_method, __mStack, ref instance_of_this_method);
 
+            __intp.Free(ptr_of_this_method);
             __ret->ObjectType = ObjectTypes.Integer;
             __ret->Value = result_of_this_method;
             return __ret + 1;
@@ -102,15 +106,17 @@ namespace ILRuntime.Runtime.Generated
             ILRuntime.Runtime.Enviorment.AppDomain __domain = __intp.AppDomain;
             StackObject* ptr_of_this_method;
             StackObject* __ret = ILIntepreter.Minus(__esp, 1);
+
             ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             ptr_of_this_method = ILIntepreter.GetObjectAndResolveReference(ptr_of_this_method);
-            System.Collections.Generic.KeyValuePair<System.Int32, System.Int32> instance_of_this_method;
-            instance_of_this_method = (System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>)typeof(System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
+            System.Collections.Generic.KeyValuePair<System.Int32, System.Int32> instance_of_this_method = (System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>)typeof(System.Collections.Generic.KeyValuePair<System.Int32, System.Int32>).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
 
             var result_of_this_method = instance_of_this_method.Value;
 
+            ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             WriteBackInstance(__domain, ptr_of_this_method, __mStack, ref instance_of_this_method);
 
+            __intp.Free(ptr_of_this_method);
             __ret->ObjectType = ObjectTypes.Integer;
             __ret->Value = result_of_this_method;
             return __ret + 1;

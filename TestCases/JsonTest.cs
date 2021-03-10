@@ -29,6 +29,7 @@ namespace TestCases
         {
             public long LongProp { get; set; }
             public List<JsonTestSubClass> SubClassList { get; set; }
+            public List<JsonTestEnum> SubClassEnumList { get; set; }
             public JsonTestSubClass[] ArrayProp { get; set; }
         }
 
@@ -78,6 +79,8 @@ namespace TestCases
             sub.SubClassList = new List<TestCases.JsonTest.JsonTestSubClass>();
             sub.SubClassList.Add(sub2);
             sub.SubClassList.Add(sub3);
+            sub.SubClassEnumList = new List<JsonTestEnum>();
+            sub.SubClassEnumList.Add(JsonTestEnum.Test2);
 
             cls.DicTest = new Dictionary<string, TestCases.JsonTest.JsonTestSubClass>();
             cls.DicTest["11111"] = sub;
@@ -92,6 +95,7 @@ namespace TestCases
             Console.WriteLine(cls2.SubClassProp.ArrayProp[1].LongProp);
             Console.WriteLine(cls2.SubClassProp.SubClassList[0].LongProp);
             Console.WriteLine(cls2.SubClassProp.SubClassList[1].LongProp);
+            Console.WriteLine(cls2.SubClassProp.SubClassEnumList[0]);
             Console.WriteLine(cls2.DicTest["11111"].LongProp);
             Console.WriteLine(cls2.DicTest2["111222"]);
 
@@ -142,5 +146,98 @@ namespace TestCases
             }
         }
 
+
+        class MyClass
+        {
+            public ILRuntimeTest.TestFramework.TestCLREnum myEnum;
+        }
+        public static void JsonTest6()
+        {
+            MyClass myClass = new MyClass();
+            myClass.myEnum = ILRuntimeTest.TestFramework.TestCLREnum.Test2;
+
+            string json = LitJson.JsonMapper.ToJson(myClass);
+
+            MyClass myNewClass = LitJson.JsonMapper.ToObject<MyClass>(json);
+            if (myNewClass.myEnum == ILRuntimeTest.TestFramework.TestCLREnum.Test2)
+            {
+                Console.WriteLine("Ok");
+            }
+            else
+            {
+                Console.WriteLine("Fail");
+            }
+        }
+
+        public static void JsonTest7()
+        {
+            JsonTestEnum[] arr = new JsonTestEnum[] { JsonTestEnum.Test2, JsonTestEnum.Test3 };
+            string json = JsonMapper.ToJson(arr);
+
+            JsonTestEnum[] arr2 = JsonMapper.ToObject<JsonTestEnum[]>(json);
+            if (arr2[0] != JsonTestEnum.Test2)
+                throw new Exception();
+        }
+
+        public class GenericTest<T>
+        {
+            public string name;
+            public List<T> data;
+
+            public override string ToString()
+            {
+                return $"name={name}, data=[{string.Join(", ", data)}]";
+            }
+        }
+
+        public class DataClass
+        {
+            public int code;
+            public string msg;
+            public override string ToString()
+            {
+                return $"code:{code}, msg:{msg}";
+            }
+        }
+        
+        public static void JsonTest8()
+        {
+            //T如果非热更，是可以的
+            Console.WriteLine("Generic Test where T in local");
+            GenericTest<int> g = new GenericTest<int>();
+            g.name = "intTest";
+            g.data = new List<int>()
+            {
+                0,1,2,3,4,5
+            };
+            var js = JsonMapper.ToJson(g);
+            Console.WriteLine("js:\n" + js);
+            var gObj = JsonMapper.ToObject<GenericTest<int>>(js);
+            Console.WriteLine(gObj.ToString());
+            Console.WriteLine("====================");
+
+            //T如果热更，也是可以的
+            Console.WriteLine("Generic Test where T in hotfix");
+            GenericTest<DataClass> d = new GenericTest<DataClass>();
+            d.name = "dataClassTest";
+            d.data = new List<DataClass>()
+            {
+                new DataClass()
+                {
+                    code = 200,
+                    msg="测试200"
+                },
+                new DataClass()
+                {
+                    code = 404,
+                    msg="测试404"
+                }
+            };
+            js = JsonMapper.ToJson(d);
+            Console.WriteLine("js:\n" + js);
+            var gObj2 = JsonMapper.ToObject<GenericTest<DataClass>>(js);
+            Console.WriteLine(gObj2.ToString());
+            Console.WriteLine("====================");
+        }
     }
 }

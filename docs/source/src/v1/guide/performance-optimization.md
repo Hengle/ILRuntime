@@ -20,9 +20,9 @@ ILRuntime的性能跟编译模式和Unity发布选项有着非常大的关系，
 
 ### 值类型
 
-由于值类型的特殊和ILRuntime的实现原理，目前没有办法做到直接在栈上为所有类型申请内存，因此依然只有将值类型进行装箱，然后在通过深层拷贝来模拟值类型的行为。
+由于值类型的特殊和ILRuntime的实现原理，使用ILRuntime外部定义的值类型（例如UnityEngine.Vector3）在默认情况下会造成额外的装箱拆箱开销，以及相对应的GC Alloc内存分配。
 
-因此在ILRuntime中值类型的运行效率会低于引用类型，并且在赋值时可能还会产生额外的GC Alloc，因此在热更DLL当中应该尽量避免大量使用值类型
+为了解决这个问题，ILRuntime在1.3.0版中增加了值类型绑定（ValueTypeBinding）机制，通过对这些值类型添加绑定器，可以大幅增加值类型的执行效率，以及避免GC Alloc内存分配。具体用法请参考ILRuntime的Unity3D示例工程或者ILRuntime的TestCases测试用例工程。
 
 ### 接口调用建议
 为了调用方便，ILRuntime的很多接口使用了params可变参数，但是有可能会无意间忽视这个操作带来的GCAlloc，例如下面的操作：
@@ -53,3 +53,18 @@ void Update()
 ```
 
 通过缓存IMethod实例以及参数列表数组，可以做到这个Update操作不会产生任何额外的GC Alloc，并且以最高的性能来执行
+
+如果需要传递的参数或返回值中包含int, float等基础类型，那使用上面的方法依然无法消除GC Alloc，为了更高效率的调用，ILRuntime提供了InvocationContext这种调用方式，需要按照如下方式调用
+```csharp
+int result = 0;
+using(var ctx = appdomain.BeginInvoke(m))
+{
+    //依次将参数压入栈，如果为成员方法，第一个参数固定为对象实例
+    ctx.PushObject(this);
+	ctx.PushInteger(123);
+	//开始调用
+	ctx.Invoke();
+	//调用完毕后使用对应的Read方法获取返回值
+	result = ctx.ReadInteger();
+}
+```

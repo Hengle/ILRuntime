@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Globalization;
 
 using ILRuntime.CLR.Method;
+using ILRuntime.CLR.Utils;
 
 namespace ILRuntime.Reflection
 {
@@ -16,7 +17,7 @@ namespace ILRuntime.Reflection
         Mono.Cecil.MethodDefinition definition;
         ILRuntime.Runtime.Enviorment.AppDomain appdomain;
 
-        object[] customAttributes;
+        Attribute[] customAttributes;
         Type[] attributeTypes;
         public ILRuntimeMethodInfo(ILMethod m)
         {
@@ -26,13 +27,14 @@ namespace ILRuntime.Reflection
             parameters = new ILRuntimeParameterInfo[m.ParameterCount];
             for (int i = 0; i < m.ParameterCount; i++)
             {
-                parameters[i] = new ILRuntimeParameterInfo(m.Parameters[i]);
+                var pd = m.Definition.Parameters[i];
+                parameters[i] = new ILRuntimeParameterInfo(pd, m.Parameters[i], this);
             }
         }
 
         void InitializeCustomAttribute()
         {
-            customAttributes = new object[definition.CustomAttributes.Count];
+            customAttributes = new Attribute[definition.CustomAttributes.Count];
             attributeTypes = new Type[customAttributes.Length];
             for (int i = 0; i < definition.CustomAttributes.Count; i++)
             {
@@ -40,7 +42,7 @@ namespace ILRuntime.Reflection
                 var at = appdomain.GetType(attribute.AttributeType, null, null);
                 try
                 {
-                    object ins = attribute.CreateInstance(at, appdomain);
+                    Attribute ins = attribute.CreateInstance(at, appdomain) as Attribute;
 
                     attributeTypes[i] = at.ReflectionType;
                     customAttributes[i] = ins;
@@ -57,7 +59,10 @@ namespace ILRuntime.Reflection
         {
             get
             {
-                return MethodAttributes.Public;
+                MethodAttributes ma = MethodAttributes.Public;
+                if (method.IsStatic)
+                    ma |= MethodAttributes.Static;
+                return ma;
             }
         }
 
@@ -121,7 +126,7 @@ namespace ILRuntime.Reflection
             List<object> res = new List<object>();
             for (int i = 0; i < customAttributes.Length; i++)
             {
-                if (attributeTypes[i] == attributeType)
+                if (attributeTypes[i].Equals(attributeType))
                     res.Add(customAttributes[i]);
             }
             return res.ToArray();
@@ -134,7 +139,7 @@ namespace ILRuntime.Reflection
 
         public override ParameterInfo[] GetParameters()
         {
-            throw new NotImplementedException();
+            return parameters;
         }
 
         public override object Invoke(object obj, BindingFlags invokeAttr, Binder binder, object[] parameters, CultureInfo culture)
@@ -142,7 +147,7 @@ namespace ILRuntime.Reflection
             if (method.HasThis)
             {
                 var res = appdomain.Invoke(method, obj, parameters);
-                return res;
+                return ReturnType.CheckCLRTypes(res);
             }
             else
                 return appdomain.Invoke(method, null, parameters);
@@ -158,6 +163,14 @@ namespace ILRuntime.Reflection
                     return true;
             }
             return false;
+        }
+
+        public override Type ReturnType
+        {
+            get
+            {
+                return method.ReturnType?.ReflectionType;
+            }
         }
     }
 }

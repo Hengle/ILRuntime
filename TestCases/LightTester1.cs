@@ -66,6 +66,13 @@ namespace TestCases
             public ILRuntimeTest.TestFramework.TestStruct Struct;
         }
 
+        struct StructTest3
+        {
+            public float A;
+            public StructTest B;
+            public Vector3 C;
+        }
+
         public static void UnitTest_Struct()
         {
             StructTest a = new TestCases.ExpTest_10.StructTest();
@@ -106,9 +113,9 @@ namespace TestCases
             Console.WriteLine(ILRuntimeTest.TestFramework.TestStruct.instance.value);
         }
 
-        public static object UnitTest_10022()
+        public static void UnitTest_10022()
         {
-            Vector3 pos = Vector3.Zero;
+            Vector3 pos = Vector3.One;
 
             pos.x += 1;
             pos.y += 2;
@@ -122,12 +129,49 @@ namespace TestCases
             if (pos.y < -10)
                 pos.y = -10;
 
-            return tttt(pos);
+            var pos2 = tttt(pos);
+            Console.WriteLine("pos.x = " + pos.x);
+            Console.WriteLine("pos2.x = " + pos2.x);
+
+            if (pos.x == pos2.x)
+                throw new Exception("Value Type Violation");
         }
 
-        static object tttt(Vector3 a)
+        public static void UnitTest_10023()
         {
-            return a.y;
+            StructTest3 a;
+            a = Sub10023();
+            Vector3 pos = a.C;
+            pos.x += 123;
+
+            Vector3 pos2 = a.B.Vector;
+            pos2.x -= 120;
+
+            Console.WriteLine("pos.x=" + pos.x);
+            Console.WriteLine("a.C.x=" + a.C.x);
+            if (pos.x == a.C.x)
+                throw new Exception("Value Type Violation");
+            Console.WriteLine("pos2.x=" + pos2.x);
+            Console.WriteLine("a.B.Vector.x=" + a.B.Vector.x);
+            if (pos2.x == a.B.Vector.x)
+                throw new Exception("Value Type Violation");
+
+        }
+
+        static StructTest3 Sub10023()
+        {
+            StructTest3 a;
+            a.A = 123;
+            a.C = Vector3.One;
+            a.B = new StructTest();
+            a.B.Vector = Vector3.One * 123;
+            return a;
+        }
+
+        static Vector3 tttt(Vector3 a)
+        {
+            a.x = 12345;
+            return a;
         }
         public static object UnitTest_1003()
         {
@@ -286,5 +330,95 @@ namespace TestCases
             Console.WriteLine(speedUp);
             Console.WriteLine(speedUp2);
         }
+
+        public static void UnitTest_1011()
+        {
+            long value = 0;
+            value = value + 0xffffffff;
+            Console.WriteLine(value);
+        }
+
+        public static void UnitTest_1012()
+        {
+            object och = 'd';
+            char ch1 = (char)och;
+            Console.WriteLine("test1:" + (int)ch1 + " " + ch1);
+        }
+
+        public static void UnitTest_1013()
+        {
+            var testClass = new TestClass<object>();
+            testClass.tValue = new object();
+            testClass.obj = new object();
+
+            // 清理异常
+            testClass.SetNull();
+            if (testClass.tValue != null)
+                throw new Exception();
+            testClass.Print();
+
+            // 清理正常
+            testClass.tValue = null;
+            testClass.obj = null;
+            testClass.Print();
+        }
+
+        public static void UnitTest_1014()
+        {
+            int a = 0;
+            UnitTest_1014Sub(ref a);
+            if (a != 1)
+                throw new Exception();
+        }
+
+        static void UnitTest_1014Sub(ref int a)
+        {
+            try
+            {
+                a = 2;
+                return;
+            }
+            finally
+            {
+                a = 1;
+            }
+        }
+
+        public static void UnitTest_1015()
+        {
+            Console.WriteLine(ILRuntimeTest.TestMainForm._app.GetCurrentStackTrace());
+        }
+
+        public static void UnitTest_1016()
+        {
+            uint u1 = 1607900000;
+            uint u2 = 1609000000;
+            double d1 = u1;
+            double d2 = u2;
+
+            double diff = Math.Abs(d1 - u1);
+            Console.WriteLine("diff=" + diff);
+            if (Math.Abs(d1 - u1) > 1)
+                throw new Exception("diff=" + diff);
+        }
+
+        public class TestClass<T> where T : class, new()
+        {
+            public T tValue;
+            public object obj;
+
+            public void SetNull()
+            {
+                tValue = null;    // 清理失败，不为空
+                obj = null;       // 能正常清理
+            }
+
+            public void Print()
+            {
+                Console.WriteLine(tValue);
+                Console.WriteLine(obj);
+            }
+        }
+
     }
 }

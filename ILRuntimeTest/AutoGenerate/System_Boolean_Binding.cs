@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -19,7 +20,6 @@ namespace ILRuntime.Runtime.Generated
         {
             BindingFlags flag = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
             MethodBase method;
-            FieldInfo field;
             Type[] args;
             Type type = typeof(System.Boolean);
             args = new Type[]{};
@@ -42,7 +42,7 @@ namespace ILRuntime.Runtime.Generated
                         var instance_of_fieldReference = __mStack[ptr_of_this_method->Value];
                         if(instance_of_fieldReference is ILTypeInstance)
                         {
-                            instance_of_this_method = (System.Boolean)((int)((ILTypeInstance)instance_of_fieldReference)[ptr_of_this_method->ValueLow] == 1);
+                            instance_of_this_method = (System.Boolean)typeof(System.Boolean).CheckCLRTypes(((ILTypeInstance)instance_of_fieldReference)[ptr_of_this_method->ValueLow]);
                         }
                         else
                         {
@@ -56,7 +56,7 @@ namespace ILRuntime.Runtime.Generated
                         var t = __domain.GetType(ptr_of_this_method->Value);
                         if(t is ILType)
                         {
-                            instance_of_this_method = (System.Boolean)((int)((ILType)t).StaticInstance[ptr_of_this_method->ValueLow] == 1);
+                            instance_of_this_method = (System.Boolean)typeof(System.Boolean).CheckCLRTypes(((ILType)t).StaticInstance[ptr_of_this_method->ValueLow]);
                         }
                         else
                         {
@@ -82,6 +82,7 @@ namespace ILRuntime.Runtime.Generated
             ILRuntime.Runtime.Enviorment.AppDomain __domain = __intp.AppDomain;
             StackObject* ptr_of_this_method;
             StackObject* __ret = ILIntepreter.Minus(__esp, 1);
+
             ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             System.Boolean instance_of_this_method = GetInstance(__domain, ptr_of_this_method, __mStack);
 

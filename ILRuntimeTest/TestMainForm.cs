@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows.Forms;
 using ILRuntime.CLR.TypeSystem;
@@ -18,8 +19,9 @@ namespace ILRuntimeTest
 {
     public partial class TestMainForm : Form
     {
-        ILRuntime.Runtime.Enviorment.AppDomain _app;
+        public static ILRuntime.Runtime.Enviorment.AppDomain _app;
         private Assembly _assembly;
+        FileStream fs, fs2;
         private List<TestResultInfo> _resList = new List<TestResultInfo>();
         private List<BaseTestUnit> _testUnitList = new List<BaseTestUnit>();
 
@@ -40,8 +42,6 @@ namespace ILRuntimeTest
             listView1.View = View.Details;
             _app = new ILRuntime.Runtime.Enviorment.AppDomain();
             _app.DebugService.StartDebugService(56000);
-            LitJson.JsonMapper.RegisterILRuntimeCLRRedirection(_app);
-            ILRuntime.Runtime.Generated.CLRBindings.Initialize(_app);
         }
 
         private void OnBtnRun(object sender, EventArgs e)
@@ -105,6 +105,10 @@ namespace ILRuntimeTest
 
         private void OnBtnLoad(object sender, EventArgs e)
         {
+            if (fs != null)
+                fs.Close();
+            if (fs2 != null)
+                fs2.Close();
             if (txtPath.Text == "")
             {
                 if (OD.ShowDialog() == DialogResult.OK)
@@ -120,17 +124,32 @@ namespace ILRuntimeTest
 
             try
             {
-                using (FileStream fs = new FileStream(txtPath.Text, FileMode.Open, FileAccess.Read))
+                fs = new FileStream(txtPath.Text, FileMode.Open, FileAccess.Read);
                 {
                     var path = Path.GetDirectoryName(txtPath.Text);
                     var name = Path.GetFileNameWithoutExtension(txtPath.Text);
-                    using (var fs2 = new System.IO.FileStream($"{path}\\{name}.pdb", FileMode.Open))
+                    var pdbPath = Path.Combine(path, name) + ".pdb";
+                    if (!File.Exists(pdbPath)) {
+                        name = Path.GetFileName(txtPath.Text);
+                        pdbPath = Path.Combine(path, name) + ".mdb";
+                    }
+
+                    fs2 = new System.IO.FileStream(pdbPath, FileMode.Open);
                     {
-                        _app.LoadAssembly(fs, fs2, new Mono.Cecil.Pdb.PdbReaderProvider());
+                        ILRuntime.Mono.Cecil.Cil.ISymbolReaderProvider symbolReaderProvider = null;
+                        if (pdbPath.EndsWith (".pdb")) {
+                            symbolReaderProvider = new ILRuntime.Mono.Cecil.Pdb.PdbReaderProvider ();
+                        }/* else if (pdbPath.EndsWith (".mdb")) {
+                            symbolReaderProvider = new Mono.Cecil.Mdb.MdbReaderProvider ();
+                        }*/
+
+                        _app.LoadAssembly(fs, fs2, symbolReaderProvider);
                         _isLoadAssembly = true;
                     }
 
                     ILRuntimeHelper.Init(_app);
+                    ILRuntime.Runtime.Generated.CLRBindings.Initialize(_app);
+
                     LoadTest();
                     UpdateBtnState();
                 }
@@ -202,7 +221,7 @@ namespace ILRuntimeTest
                     string fullName = ilType.FullName;
                     //Console.WriteLine("call the method:{0},return type {1},params count{2}", fullName + "." + methodInfo.Name, methodInfo.ReturnType, methodInfo.GetParameters().Length);
                     //目前只支持无参数，无返回值测试
-                    if (methodInfo.ParameterCount == 0 && methodInfo.IsStatic)
+                    if (methodInfo.ParameterCount == 0 && methodInfo.IsStatic && ((ILRuntime.CLR.Method.ILMethod)methodInfo).Definition.IsPublic)
                     {
                         var testUnit = new StaticTestUnit();
                         testUnit.Init(_app, fullName, methodInfo.Name);
@@ -227,6 +246,14 @@ namespace ILRuntimeTest
             btnRunSelect.Enabled = _selectItemArgs != null;
         }
 
+        private void button1_Click(object sender, EventArgs e)
+        {
+            var msg = ILRuntime.Runtime.Enviorment.CrossBindingCodeGenerator.GenerateCrossBindingAdapterCode(typeof(TestClass2), "ILRuntimeTest");
+            MessageBox.Show(msg);
+            msg = ILRuntime.Runtime.Enviorment.CrossBindingCodeGenerator.GenerateCrossBindingAdapterCode(typeof(IAsyncStateMachine), "ILRuntimeTest");
+            MessageBox.Show(msg);
+        }
+
         private void btnGenerateBinding_Click(object sender, EventArgs e)
         {
             /*List<Type> types = new List<Type>();
@@ -246,10 +273,12 @@ namespace ILRuntimeTest
             using (FileStream fs = new FileStream(txtPath.Text, FileMode.Open, FileAccess.Read))
             {
                 domain.LoadAssembly(fs);
+
+                //Crossbind Adapter is needed to generate the correct binding code
+                ILRuntimeHelper.Init(domain);
+                string outputPath = ".." + Path.DirectorySeparatorChar + ".." + Path.DirectorySeparatorChar + "AutoGenerate"; // "..\\..\\AutoGenerate"
+                ILRuntime.Runtime.CLRBinding.BindingCodeGenerator.GenerateBindingCode(domain, outputPath);
             }
-            //Crossbind Adapter is needed to generate the correct binding code
-            ILRuntimeHelper.Init(domain);
-            ILRuntime.Runtime.CLRBinding.BindingCodeGenerator.GenerateBindingCode(domain, "..\\..\\AutoGenerate");
         }
     }
 }

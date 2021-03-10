@@ -8,7 +8,8 @@ namespace ILRuntime.CLR.TypeSystem
     class ILGenericParameterType : IType
     {
         string name;
-        ILGenericParameterType arrayType;
+        bool isArray, isByRef;
+        ILGenericParameterType arrayType, byrefType, elementType;
         public ILGenericParameterType(string name)
         {
             this.name = name;
@@ -27,6 +28,14 @@ namespace ILRuntime.CLR.TypeSystem
             get
             {
                 return true;
+            }
+        }
+
+        public bool IsGenericParameter
+        {
+            get
+            {
+                return !isByRef && !isArray; 
             }
         }
 
@@ -95,11 +104,17 @@ namespace ILRuntime.CLR.TypeSystem
 
         public IType ByRefType
         {
-            get { throw new NotImplementedException(); }
+            get { return byrefType; }
         }
 
         public IType MakeByRefType()
         {
+            if (byrefType == null)
+            {
+                byrefType = new ILGenericParameterType(name + "&");
+                byrefType.isByRef = true;
+                byrefType.elementType = this;
+            }
             return this;
         }
 
@@ -109,10 +124,14 @@ namespace ILRuntime.CLR.TypeSystem
             get { return arrayType; }
         }
 
-        public IType MakeArrayType()
+        public IType MakeArrayType(int rank)
         {
             if (arrayType == null)
+            {
                 arrayType = new ILGenericParameterType(name + "[]");
+                arrayType.isArray = true;
+                arrayType.elementType = this;
+            }
             return arrayType;
         }
 
@@ -120,6 +139,19 @@ namespace ILRuntime.CLR.TypeSystem
         public bool IsValueType
         {
             get { throw new NotImplementedException(); }
+        }
+
+        public bool IsPrimitive
+        {
+            get { return false; }
+        }
+        public bool IsEnum
+        {
+            get { return false; }
+        }
+        public bool IsInterface
+        {
+            get { return false; }
         }
 
         public string Name
@@ -161,7 +193,28 @@ namespace ILRuntime.CLR.TypeSystem
 
         public bool IsArray
         {
-            get { return false; }
+            get { return isArray; }
+        }
+
+        public bool IsByRef
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        public IType ElementType
+        {
+            get
+            {
+                return elementType;
+            }
+        }
+
+        public int ArrayRank
+        {
+            get { return 1; }
         }
 
         public IType[] Implements

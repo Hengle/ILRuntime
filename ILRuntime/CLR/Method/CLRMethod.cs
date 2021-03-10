@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-using Mono.Cecil;
+using ILRuntime.Mono.Cecil;
 using ILRuntime.Runtime.Intepreter;
 using ILRuntime.Runtime.Enviorment;
 using ILRuntime.CLR.TypeSystem;
@@ -17,12 +17,14 @@ namespace ILRuntime.CLR.Method
         MethodInfo def;
         ConstructorInfo cDef;
         List<IType> parameters;
+        ParameterInfo[] parametersCLR;
         ILRuntime.Runtime.Enviorment.AppDomain appdomain;
         CLRType declaringType;
         ParameterInfo[] param;
         bool isConstructor;
         CLRRedirectionDelegate redirect;
         IType[] genericArguments;
+        Type[] genericArgumentsCLR;
         object[] invocationParam;
         bool isDelegateInvoke;
         int hashCode = -1;
@@ -78,7 +80,13 @@ namespace ILRuntime.CLR.Method
 
         public bool IsStatic
         {
-            get { return def.IsStatic; }
+            get
+            {
+                if (cDef != null)
+                    return cDef.IsStatic;
+                else
+                    return def.IsStatic;
+            }
         }
 
         public CLRRedirectionDelegate Redirection { get { return redirect; } }
@@ -88,6 +96,21 @@ namespace ILRuntime.CLR.Method
         public ConstructorInfo ConstructorInfo { get { return cDef; } }
 
         public IType[] GenericArguments { get { return genericArguments; } }
+
+        public Type[] GenericArgumentsCLR
+        {
+            get
+            {
+                if(genericArgumentsCLR == null)
+                {
+                    if (cDef != null)
+                        genericArgumentsCLR = cDef.GetGenericArguments();
+                    else
+                        genericArgumentsCLR = def.GetGenericArguments();
+                }
+                return genericArgumentsCLR;
+            }
+        }
 
         internal CLRMethod(MethodInfo def, CLRType type, ILRuntime.Runtime.Enviorment.AppDomain domain)
         {
@@ -111,7 +134,9 @@ namespace ILRuntime.CLR.Method
             {
                 if (def.IsGenericMethod && !def.IsGenericMethodDefinition)
                 {
-                    appdomain.RedirectMap.TryGetValue(def.GetGenericMethodDefinition(), out redirect);
+                    //Redirection of Generic method Definition will be prioritized
+                    if(!appdomain.RedirectMap.TryGetValue(def.GetGenericMethodDefinition(), out redirect))
+                        appdomain.RedirectMap.TryGetValue(def, out redirect);
                 }
                 else
                     appdomain.RedirectMap.TryGetValue(def, out redirect);
@@ -153,6 +178,21 @@ namespace ILRuntime.CLR.Method
                     InitParameters();
                 }
                 return parameters;
+            }
+        }
+
+        public ParameterInfo[] ParametersCLR
+        {
+            get
+            {
+                if(parametersCLR == null)
+                {
+                    if (cDef != null)
+                        parametersCLR = cDef.GetParameters();
+                    else
+                        parametersCLR = def.GetParameters();
+                }
+                return parametersCLR;
             }
         }
 
@@ -220,7 +260,8 @@ namespace ILRuntime.CLR.Method
             for (int i = paramCount; i >= 1; i--)
             {
                 var p = Minus(esp, i);
-                var obj = this.param[paramCount - i].ParameterType.CheckCLRTypes(StackObject.ToObject(p, appdomain, mStack));
+                var pt = this.param[paramCount - i].ParameterType;
+                var obj = pt.CheckCLRTypes(StackObject.ToObject(p, appdomain, mStack));
                 obj = ILIntepreter.CheckAndCloneValueType(obj, appdomain);
                 param[paramCount - i] = obj;
             }
@@ -248,7 +289,7 @@ namespace ILRuntime.CLR.Method
                 {
                     var res = cDef.Invoke(param);
 
-                    FixReference(paramCount, esp, param, mStack);
+                    FixReference(paramCount, esp, param, mStack, null, false);
                     return res;
                 }
 
@@ -259,7 +300,11 @@ namespace ILRuntime.CLR.Method
 
                 if (!def.IsStatic)
                 {
-                    instance = declaringType.TypeForCLR.CheckCLRTypes(StackObject.ToObject((Minus(esp, paramCount + 1)), appdomain, mStack));
+                    instance = StackObject.ToObject((Minus(esp, paramCount + 1)), appdomain, mStack);
+                    if (!(instance is Reflection.ILRuntimeWrapperType))
+                        instance = declaringType.TypeForCLR.CheckCLRTypes(instance);
+                    if (declaringType.IsValueType)
+                        instance = ILIntepreter.CheckAndCloneValueType(instance, appdomain);
                     if (instance == null)
                         throw new NullReferenceException();
                 }
@@ -271,22 +316,24 @@ namespace ILRuntime.CLR.Method
                     res = def.Invoke(instance, param);
                 }
 
-                FixReference(paramCount, esp, param, mStack);
+                FixReference(paramCount, esp, param, mStack, instance, !def.IsStatic);
                 return res;
             }
         }
 
-        unsafe void FixReference(int paramCount, StackObject* esp, object[] param, IList<object> mStack)
+        unsafe void FixReference(int paramCount, StackObject* esp, object[] param, IList<object> mStack,object instance, bool hasThis)
         {
-            for (int i = paramCount; i >= 1; i--)
+            var cnt = hasThis ? paramCount + 1 : paramCount;
+            for (int i = cnt; i >= 1; i--)
             {
                 var p = Minus(esp, i);
-                var val = param[paramCount - i];
+                var val = i <= paramCount ? param[paramCount - i] : instance;
                 switch (p->ObjectType)
                 {
                     case ObjectTypes.StackObjectReference:
                         {
-                            var dst = *(StackObject**)&p->Value;
+                            var addr = *(long*)&p->Value;
+                            var dst = (StackObject*)addr;
                             if (dst->ObjectType >= ObjectTypes.Object)
                             {
                                 var obj = val;
@@ -296,7 +343,7 @@ namespace ILRuntime.CLR.Method
                             }
                             else
                             {
-                                ILIntepreter.UnboxObject(dst, val);
+                                ILIntepreter.UnboxObject(dst, val, mStack, appdomain);
                             }
                         }
                         break;
@@ -327,6 +374,12 @@ namespace ILRuntime.CLR.Method
                             }
                         }
                         break;
+                    case ObjectTypes.ArrayReference:
+                        {
+                            var arr = mStack[p->Value] as Array;
+                            arr.SetValue(val, p->ValueLow);
+                        }
+                        break;
                 }
             }
         }
@@ -338,7 +391,27 @@ namespace ILRuntime.CLR.Method
             {
                 p[i] = genericArguments[i].TypeForCLR;
             }
-            var t = def.MakeGenericMethod(p);
+
+            MethodInfo t = null;
+#if UNITY_EDITOR || (DEBUG && !DISABLE_ILRUNTIME_DEBUG)
+            try
+            {
+#endif
+                t = def.MakeGenericMethod(p);
+#if UNITY_EDITOR || (DEBUG && !DISABLE_ILRUNTIME_DEBUG)
+            }
+            catch (Exception e)
+            {
+                string argString = "";
+                for (int i = 0; i < genericArguments.Length; i++)
+                {
+                    argString += genericArguments[i].TypeForCLR.FullName + ", ";
+                }
+
+                argString = argString.Substring(0, argString.Length - 2);
+                throw new Exception($"MakeGenericMethod failed : {def.DeclaringType.FullName}.{def.Name}<{argString}>");
+            }
+#endif
             var res = new CLRMethod(t, declaringType, appdomain);
             res.genericArguments = genericArguments;
             return res;

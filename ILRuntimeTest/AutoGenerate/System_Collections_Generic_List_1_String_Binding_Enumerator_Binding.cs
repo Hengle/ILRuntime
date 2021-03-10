@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -19,7 +20,6 @@ namespace ILRuntime.Runtime.Generated
         {
             BindingFlags flag = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
             MethodBase method;
-            FieldInfo field;
             Type[] args;
             Type type = typeof(System.Collections.Generic.List<System.String>.Enumerator);
             args = new Type[]{};
@@ -28,6 +28,8 @@ namespace ILRuntime.Runtime.Generated
             args = new Type[]{};
             method = type.GetMethod("MoveNext", flag, null, args, null);
             app.RegisterCLRMethodRedirection(method, MoveNext_1);
+
+            app.RegisterCLRCreateDefaultInstance(type, () => new System.Collections.Generic.List<System.String>.Enumerator());
 
 
         }
@@ -83,15 +85,17 @@ namespace ILRuntime.Runtime.Generated
             ILRuntime.Runtime.Enviorment.AppDomain __domain = __intp.AppDomain;
             StackObject* ptr_of_this_method;
             StackObject* __ret = ILIntepreter.Minus(__esp, 1);
+
             ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             ptr_of_this_method = ILIntepreter.GetObjectAndResolveReference(ptr_of_this_method);
-            System.Collections.Generic.List<System.String>.Enumerator instance_of_this_method;
-            instance_of_this_method = (System.Collections.Generic.List<System.String>.Enumerator)typeof(System.Collections.Generic.List<System.String>.Enumerator).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
+            System.Collections.Generic.List<System.String>.Enumerator instance_of_this_method = (System.Collections.Generic.List<System.String>.Enumerator)typeof(System.Collections.Generic.List<System.String>.Enumerator).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
 
             var result_of_this_method = instance_of_this_method.Current;
 
+            ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             WriteBackInstance(__domain, ptr_of_this_method, __mStack, ref instance_of_this_method);
 
+            __intp.Free(ptr_of_this_method);
             return ILIntepreter.PushObject(__ret, __mStack, result_of_this_method);
         }
 
@@ -100,15 +104,17 @@ namespace ILRuntime.Runtime.Generated
             ILRuntime.Runtime.Enviorment.AppDomain __domain = __intp.AppDomain;
             StackObject* ptr_of_this_method;
             StackObject* __ret = ILIntepreter.Minus(__esp, 1);
+
             ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             ptr_of_this_method = ILIntepreter.GetObjectAndResolveReference(ptr_of_this_method);
-            System.Collections.Generic.List<System.String>.Enumerator instance_of_this_method;
-            instance_of_this_method = (System.Collections.Generic.List<System.String>.Enumerator)typeof(System.Collections.Generic.List<System.String>.Enumerator).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
+            System.Collections.Generic.List<System.String>.Enumerator instance_of_this_method = (System.Collections.Generic.List<System.String>.Enumerator)typeof(System.Collections.Generic.List<System.String>.Enumerator).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
 
             var result_of_this_method = instance_of_this_method.MoveNext();
 
+            ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
             WriteBackInstance(__domain, ptr_of_this_method, __mStack, ref instance_of_this_method);
 
+            __intp.Free(ptr_of_this_method);
             __ret->ObjectType = ObjectTypes.Integer;
             __ret->Value = result_of_this_method ? 1 : 0;
             return __ret + 1;

@@ -5,7 +5,7 @@ using System.Text;
 using System.Reflection;
 using System.Globalization;
 
-using Mono.Cecil;
+using ILRuntime.Mono.Cecil;
 using ILRuntime.CLR.Utils;
 using ILRuntime.CLR.TypeSystem;
 using ILRuntime.Runtime;
@@ -26,7 +26,7 @@ namespace ILRuntime.Reflection
         string name;
         FieldDefinition definition;
         Runtime.Enviorment.AppDomain appdomain;
-        object[] customAttributes;
+        Attribute[] customAttributes;
         Type[] attributeTypes;
 
         public IType ILFieldType { get { return fieldType; } }
@@ -73,7 +73,7 @@ namespace ILRuntime.Reflection
 
         void InitializeCustomAttribute()
         {
-            customAttributes = new object[definition.CustomAttributes.Count];
+            customAttributes = new Attribute[definition.CustomAttributes.Count];
             attributeTypes = new Type[customAttributes.Length];
             for (int i = 0; i < definition.CustomAttributes.Count; i++)
             {
@@ -81,7 +81,7 @@ namespace ILRuntime.Reflection
                 var at = appdomain.GetType(attribute.AttributeType, null, null);
                 try
                 {
-                    object ins = attribute.CreateInstance(at, appdomain);
+                    Attribute ins = attribute.CreateInstance(at, appdomain) as Attribute;
 
                     attributeTypes[i] = at.ReflectionType;
                     customAttributes[i] = ins;
@@ -153,11 +153,14 @@ namespace ILRuntime.Reflection
         {
             if (customAttributes == null)
                 InitializeCustomAttribute();
+
             List<object> res = new List<object>();
             for (int i = 0; i < customAttributes.Length; i++)
             {
-                if (attributeTypes[i] == attributeType)
+                if (attributeTypes[i].Equals(attributeType))
+                {
                     res.Add(customAttributes[i]);
+                }
             }
             return res.ToArray();
         }
@@ -166,7 +169,6 @@ namespace ILRuntime.Reflection
         {
             unsafe
             {
-                StackObject esp;
                 ILTypeInstance ins;
                 if (isStatic)
                 {
@@ -187,10 +189,14 @@ namespace ILRuntime.Reflection
         {
             if (customAttributes == null)
                 InitializeCustomAttribute();
+
+
             for (int i = 0; i < customAttributes.Length; i++)
             {
-                if (attributeTypes[i] == attributeType)
+                if (attributeTypes[i].Equals(attributeType))
+                {
                     return true;
+                }
             }
             return false;
         }
@@ -199,7 +205,6 @@ namespace ILRuntime.Reflection
         {
             unsafe
             {
-                StackObject esp;
                 if (value is CrossBindingAdaptorType)
                     value = ((CrossBindingAdaptorType)value).ILInstance;
                 ILTypeInstance ins;

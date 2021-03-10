@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -19,7 +20,6 @@ namespace ILRuntime.Runtime.Generated
         {
             BindingFlags flag = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
             MethodBase method;
-            FieldInfo field;
             Type[] args;
             Type type = typeof(System.Action<System.Int32, System.String, System.String>);
             args = new Type[]{typeof(System.Int32), typeof(System.String), typeof(System.String)};
@@ -35,20 +35,23 @@ namespace ILRuntime.Runtime.Generated
             ILRuntime.Runtime.Enviorment.AppDomain __domain = __intp.AppDomain;
             StackObject* ptr_of_this_method;
             StackObject* __ret = ILIntepreter.Minus(__esp, 4);
+
             ptr_of_this_method = ILIntepreter.Minus(__esp, 1);
-            System.String arg3 = (System.String)typeof(System.String).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
-            __intp.Free(ptr_of_this_method);
-            ptr_of_this_method = ILIntepreter.Minus(__esp, 2);
-            System.String arg2 = (System.String)typeof(System.String).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
-            __intp.Free(ptr_of_this_method);
-            ptr_of_this_method = ILIntepreter.Minus(__esp, 3);
-            System.Int32 arg1 = ptr_of_this_method->Value;
-            ptr_of_this_method = ILIntepreter.Minus(__esp, 4);
-            System.Action<System.Int32, System.String, System.String> instance_of_this_method;
-            instance_of_this_method = (System.Action<System.Int32, System.String, System.String>)typeof(System.Action<System.Int32, System.String, System.String>).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
+            System.String @arg3 = (System.String)typeof(System.String).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
             __intp.Free(ptr_of_this_method);
 
-            instance_of_this_method.Invoke(arg1, arg2, arg3);
+            ptr_of_this_method = ILIntepreter.Minus(__esp, 2);
+            System.String @arg2 = (System.String)typeof(System.String).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
+            __intp.Free(ptr_of_this_method);
+
+            ptr_of_this_method = ILIntepreter.Minus(__esp, 3);
+            System.Int32 @arg1 = ptr_of_this_method->Value;
+
+            ptr_of_this_method = ILIntepreter.Minus(__esp, 4);
+            System.Action<System.Int32, System.String, System.String> instance_of_this_method = (System.Action<System.Int32, System.String, System.String>)typeof(System.Action<System.Int32, System.String, System.String>).CheckCLRTypes(StackObject.ToObject(ptr_of_this_method, __domain, __mStack));
+            __intp.Free(ptr_of_this_method);
+
+            instance_of_this_method.Invoke(@arg1, @arg2, @arg3);
 
             return __ret;
         }

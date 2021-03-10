@@ -6,8 +6,10 @@ using System.Text;
 using ILRuntime.CLR.TypeSystem;
 using ILRuntime.CLR.Method;
 using ILRuntime.Other;
-using Mono.Cecil;
+using ILRuntime.Mono.Cecil;
 using ILRuntime.Runtime.Intepreter;
+using System.Reflection;
+
 namespace ILRuntime.CLR.Utils
 {
     public delegate TResult Func<T1, T2, T3, T4, T5, TResult>(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5);
@@ -25,10 +27,10 @@ namespace ILRuntime.CLR.Utils
                 {
                     IType t = null;
                     t = appdomain.GetType(i.ParameterType, dt, null);
-                    if (t == null && def.IsGenericInstance)
+                    if ((t == null && def.IsGenericInstance) || (t != null && t.HasGenericParameter))
                     {
                         GenericInstanceMethod gim = (GenericInstanceMethod)def;
-                        string name = i.ParameterType.IsByReference ? i.ParameterType.GetElementType().FullName : i.ParameterType.FullName;
+                        string name = i.ParameterType.IsByReference ? ((ByReferenceType)i.ParameterType).ElementType.FullName : i.ParameterType.FullName;
                         
                         for (int j = 0; j < gim.GenericArguments.Count; j++)
                         {
@@ -43,13 +45,12 @@ namespace ILRuntime.CLR.Utils
                             }
                             else if (name.Contains(gp.Name))
                             {
-                                if (name == gp.Name)
+                                t = appdomain.GetType(ga, contextType, contextMethod);
+                                if (t == null && genericArguments != null)
+                                    t = genericArguments[j];
+                                if (name == gp.Name + "[]")
                                 {
-                                    name = ga.FullName;
-                                }
-                                else if (name == gp.Name + "[]")
-                                {
-                                    name = ga.FullName + "[]";
+                                    name = t.FullName + "[]";
                                 }
                                 else
                                 {
@@ -60,12 +61,25 @@ namespace ILRuntime.CLR.Utils
                                     name = name.Replace("," + gp.Name + "[", "," + ga.FullName + "[");
                                     name = name.Replace("," + gp.Name + ",", "," + ga.FullName + ",");
                                     name = name.Replace("," + gp.Name + "[", "," + ga.FullName + "[");*/
-                                    name = ReplaceGenericArgument(name, gp.Name, ga.FullName);
+                                    name = ReplaceGenericArgument(name, gp.Name, t.FullName);
+                                }
+                                t = null;
+                            }
+                        }
+                        if(dt.GenericArguments != null)
+                        {
+                            foreach(var gp in dt.GenericArguments)
+                            {
+                                if (name.Contains(gp.Key))
+                                {
+                                    name = ReplaceGenericArgument(name, gp.Key, gp.Value.FullName);
                                 }
                             }
                         }
                         if (t == null)
                             t = appdomain.GetType(name);
+                        if (t != null && i.ParameterType.IsByReference)
+                            t = t.MakeByRefType();
                     }
 
                     param.Add(t);
@@ -76,34 +90,66 @@ namespace ILRuntime.CLR.Utils
                 return EmptyParamList;
         }
 
-        static string ReplaceGenericArgument(string typename, string argumentName, string argumentType)
+        static string ReplaceGenericArgument(string typename, string argumentName, string argumentType, bool isGA = false)
         {
             string baseType;
             StringBuilder sb = new StringBuilder();
             List<string> ga;
             bool isArray;
-            Runtime.Enviorment.AppDomain.ParseGenericType(typename, out baseType, out ga, out isArray);
+            byte rank;
+            Runtime.Enviorment.AppDomain.ParseGenericType(typename, out baseType, out ga, out isArray, out rank);
+            string baseTypeQualification = null;
+            bool hasGA = ga != null && ga.Count > 0;
             if (baseType == argumentName)
-                sb.Append(argumentType);
-            else
-                sb.Append(baseType);
-            if (ga != null && ga.Count > 0)
             {
-                sb.Append("<");
+                bool isAssemblyQualified = argumentName.Contains('=') || argumentType.Contains('=');
+                if (isGA && isAssemblyQualified)
+                    sb.Append('[');
+                sb.Append(argumentType);
+                if (isGA && isAssemblyQualified)
+                    sb.Append(']');
+            }
+            else
+            {
+                bool isAssemblyQualified = baseType.Contains('=');
+                if (isGA && !hasGA && isAssemblyQualified)
+                    sb.Append('[');
+                else if (isAssemblyQualified)
+                {
+                    sb.Append('[');
+                    baseTypeQualification = baseType.Substring(baseType.IndexOf(','));
+                    baseType = baseType.Substring(0, baseType.IndexOf(','));                    
+                }
+                sb.Append(baseType);
+                if (isGA && !hasGA && isAssemblyQualified)
+                    sb.Append(']');
+            }
+            if (hasGA)
+            {
+                sb.Append("[");
                 bool isFirst = true;
-                foreach(var i in ga)
+                foreach (var i in ga)
                 {
                     if (isFirst)
                         isFirst = false;
                     else
                         sb.Append(",");
-
-                    sb.Append(ReplaceGenericArgument(i, argumentName, argumentType));
+                    sb.Append(ReplaceGenericArgument(i, argumentName, argumentType, true));
                 }
-                sb.Append(">");
+                sb.Append("]");
+            }
+            if (!string.IsNullOrEmpty(baseTypeQualification))
+            {
+                sb.Append(baseTypeQualification);
+                sb.Append(']');
             }
             if (isArray)
-                sb.Append("[]");
+            {
+                sb.Append("[");
+                for (int i = 0; i < rank - 1; i++)
+                    sb.Append(",");
+                sb.Append("]");
+            }
             return sb.ToString();
         }
 
@@ -184,8 +230,9 @@ namespace ILRuntime.CLR.Utils
 
             var typeFlags = GetTypeFlags(pt);
 
-            if ((typeFlags & TypeFlags.IsPrimitive) != 0 && pt != typeof(int))
+            if ((typeFlags & TypeFlags.IsPrimitive) != 0)
             {
+                if (pt == typeof(int)) return obj;
                 if (pt == typeof(bool) && !(obj is bool))
                 {
                     obj = (int)obj == 1;
@@ -239,12 +286,40 @@ namespace ILRuntime.CLR.Utils
                 if (!(obj is ILEnumTypeInstance))
                 {
                     var ins = (ILTypeInstance)obj;
-                    if (ins.IsValueType)
-                        ins = ins.Clone();
+                    /*if (ins.IsValueType)
+                        ins = ins.Clone();*/
                     return ins.CLRInstance;
                 }
             }
             return obj;
+        }
+
+        public static bool CheckMethodParams(this MethodInfo m, Type[] args)
+        {
+            var arr = m.GetParameters();
+            if (arr.Length != args.Length) return false;
+            for (var i = 0; i < args.Length; i++)
+            {
+                var t1 = arr[i].ParameterType;
+                var t2 = args[i];
+                if (t1 != t2 || t1.IsByRef != t2.IsByRef)
+                    return false;
+            }
+            return true;
+        }
+
+        public static bool CheckMethodParams(this MethodInfo m, ParameterInfo[] args)
+        {
+            var arr = m.GetParameters();
+            if (arr.Length != args.Length) return false;
+            for (var i = 0; i < args.Length; i++)
+            {
+                var t1 = arr[i].ParameterType;
+                var t2 = args[i].ParameterType;
+                if (t1 != t2 || t1.IsByRef != t2.IsByRef)
+                    return false;
+            }
+            return true;
         }
     }
 }
